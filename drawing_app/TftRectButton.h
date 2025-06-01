@@ -1,0 +1,20 @@
+#ifndef TFT_RECT_BUTTON_H  // Include guard to prevent double inclusion
+#define TFT_RECT_BUTTON_H
+
+#include <Adafruit_GFX.h>    // Required for Adafruit_ST7789
+#include <Adafruit_ST7789.h> // For tft object
+
+class TftRectButton {
+  public:
+    void init(Adafruit_ST7789 &newTft, int16_t xLocation, int16_t yLocation, int16_t width, int16_t height, uint16_t btnColor);
+    void addLabel(String text, int16_t textSize, int16_t topPadding, uint16_t textColor);
+    bool isPressed(int16_t xloc, int16_t yloc);
+    void highlight(int16_t padding, uint16_t color);
+
+  protected:
+    int16_t x, y, w, h;
+    uint16_t color;
+    Adafruit_ST7789 *tft;
+};
+
+#endif
