@@ -7,6 +7,7 @@
 class TftCanvas : public TftRectButton {
   public:
     void clear();
+    void fillColor(uint16_t fillColor);
     void draw(int16_t xloc, int16_t yloc, int penSize, uint16_t penColor);
 };
 

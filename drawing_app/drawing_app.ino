@@ -4,16 +4,17 @@
 #include <XPT2046_Touchscreen.h>
 #include "TftRectButton.h"
 #include "TftCanvas.h"
+#include "Colors.h"   //Modify to change color palette
+
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
 // --- Colors (16-bit) ---
-#define BACKGROUND ST77XX_BLACK //Background of canvas
-#define ST77XX_BROWN 0x8B47
+#define COLORPERPAGE 7  //Better if this + 1 is a factor of tft.witdth()
+#define BACKGROUND 0x0000 //Background of canvas
 
-// --- Constants (change to accomodate more sizes and colors) ---
-const int numsizes = 5;
-const int sizes[numsizes] = {2, 6, 12, 18, 24}; //Use even values for more accurate result.
-const int numcolors = 9;
-const int colors[numcolors] = {ST77XX_RED, ST77XX_GREEN, ST77XX_BLUE, ST77XX_YELLOW, ST77XX_CYAN, ST77XX_ORANGE, ST77XX_BROWN, ST77XX_BLACK, ST77XX_WHITE};
+// --- Constants (change to accomodate more sizes) ---
+const int sizes[] = {2, 6, 12, 18, 24, 50}; //Use even values for more accurate result.
+const int numsizes = ARRAY_SIZE(sizes);
 
 // --- Display Pins ---
 #define TFT_CS   D2   // GPIO4
@@ -37,21 +38,28 @@ Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
 XPT2046_Touchscreen ts(TS_CS, TS_IRQ);
 
 // --- Global States ---
+int currcolpage = 1;
+int numpages = (NUM_COLORS + COLORPERPAGE - 1) / COLORPERPAGE;
+uint16_t currColors[COLORPERPAGE];
 int prevcolidx = 0;
-int colidx = 0;
+int currcolidx = 0;
 int prevsizeidx = 0;
 int sizeidx = 0;
 
 // --- Custom objects ---
 TftRectButton clearbtn;
+TftRectButton fillbtn;
 TftRectButton sizefield;
 TftRectButton sizebtns[numsizes];
+TftRectButton colorflip;
 TftRectButton colorfield;
-TftRectButton colorbtns[numcolors];
+TftRectButton colorbtns[NUM_COLORS];
 TftCanvas canvas;
 
 // --- Setup ---
 void setup() {
+  Serial.begin(115200);
+
   // Initialize SPI once globally
   SPI.begin();
 
@@ -63,9 +71,13 @@ void setup() {
 
   //Create the UI
   createSizes(0, 0, 240, 30);
+  tft.fillRect(0, 249, 240, 1, ST77XX_WHITE);
   createColors(0, 250, 240, 30);
-  clearbtn.init(tft, 0, 290, tft.width(), 30, ST77XX_BLUE);
-  clearbtn.addLabel("CLEAR", 2, 5, ST77XX_WHITE);
+  tft.fillRect(0, 280, 240, 1, ST77XX_WHITE);
+  fillbtn.init(tft, 0, 290, tft.width() / 2, 30, ST77XX_ORANGE);
+  fillbtn.addLabel("FILL SCRN", 1, ST77XX_WHITE);
+  clearbtn.init(tft, tft.width() / 2, 290, tft.width() / 2, 30, ST77XX_BLUE);
+  clearbtn.addLabel("CLEAR", 1, ST77XX_WHITE);
   canvas.init(tft, 0, 40, 240, 200, BACKGROUND);
 
   // Initialize touchscreen
@@ -75,10 +87,6 @@ void setup() {
 
 // --- Main Loop ---
 void loop() {
-  // --- State ---
-  static int xwidthcolor = tft.width()/numcolors;
-  static int xwidthsize = tft.width()/numsizes;
-
   // Check touch
   SPI.beginTransaction(tsSPISettings);
   bool touched = ts.touched();
@@ -101,22 +109,28 @@ void loop() {
     if(clearbtn.isPressed(x, y)) {
       canvas.clear();
     }
-
+    else if(fillbtn.isPressed(x, y)) {
+      canvas.fillColor(currColors[currcolidx]);
+    }
+    else if(colorflip.isPressed(x, y)) {
+      currcolpage++;
+      if(currcolpage > numpages) currcolpage = 1;
+      createColors(0, 250, 240, 30);
+    }
     else if(colorfield.isPressed(x, y)) {
-      for(int i = 0; i < numcolors; i++) {
+      for(int i = 0; i < NUM_COLORS; i++) {
         if(colorbtns[i].isPressed(x, y)) {
-          colidx = i;
-          if(prevcolidx != colidx) {
-            colorbtns[colidx].highlight(5, ~(colors[colidx]));
-            colorbtns[prevcolidx].highlight(5, colors[prevcolidx]);
-            prevcolidx = colidx;
+          currcolidx = i;
+          if(prevcolidx != currcolidx) {
+            colorbtns[currcolidx].highlight(5, ~(currColors[currcolidx]));
+            colorbtns[prevcolidx].highlight(5, currColors[prevcolidx]);
+            prevcolidx = currcolidx;
           }
 
           break;
         }
       }
     }
-
     else if(sizefield.isPressed(x, y)) {
       for(int i = 0; i < numsizes; i++) {
         if(sizebtns[i].isPressed(x, y)) {
@@ -130,9 +144,8 @@ void loop() {
         }
       }
     }
-
     else if(canvas.isPressed(x, y)) {
-      canvas.draw(x, y, sizes[sizeidx], colors[colidx]);
+      canvas.draw(x, y, sizes[sizeidx], currColors[currcolidx]);
     }
   }
 }
@@ -143,19 +156,25 @@ void createSizes(int x, int y, int w, int h) {
 
   for(int i = 0; i < numsizes; i++) {
     sizebtns[i].init(tft, xwidth * i, y, xwidth, h, ST77XX_WHITE);
-    sizebtns[i].addLabel(String(sizes[i]), 1, 12, ST77XX_BLACK);
+    sizebtns[i].addLabel(String(sizes[i]), 1, ST77XX_BLACK);
   }
 
   sizebtns[sizeidx].highlight(5, ST77XX_BLACK);
 }
 
 void createColors(int x, int y, int w, int h) {
-  int xwidth = w/numcolors;
-  colorfield.init(tft, x, y, w, h, ST77XX_BLACK);
+  int xwidth = w/(COLORPERPAGE + 1);
+  colorflip.init(tft, x, y, xwidth, h, ST77XX_WHITE);
+  colorflip.addLabel(String(currcolpage), 2, ST77XX_BLACK);
+  colorflip.highlight(0, ST77XX_BLACK);
+  colorfield.init(tft, xwidth, y, w - xwidth, h, ST77XX_BLACK);
 
-  for(int i = 0; i < numcolors; i++) {
-    colorbtns[i].init(tft, xwidth * i, y, xwidth, h, colors[i]);
+  //Get current page colors
+  for(int i = 0; i < COLORPERPAGE; i++) {
+    int j = i + ((currcolpage - 1) * (COLORPERPAGE));
+    currColors[i] = j < NUM_COLORS? colors[j]: ST77XX_BLACK;
+    colorbtns[i].init(tft, xwidth * (i + 1), y, xwidth, h, currColors[i]);
   }
 
-  colorbtns[colidx].highlight(5, ~colors[colidx]);
+  colorbtns[currcolidx].highlight(5, ~currColors[currcolidx]);
 }

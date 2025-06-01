@@ -7,7 +7,7 @@
 class TftRectButton {
   public:
     void init(Adafruit_ST7789 &newTft, int16_t xLocation, int16_t yLocation, int16_t width, int16_t height, uint16_t btnColor);
-    void addLabel(String text, int16_t textSize, int16_t topPadding, uint16_t textColor);
+    void addLabel(String text, int16_t textSize, uint16_t textColor);
     bool isPressed(int16_t xloc, int16_t yloc);
     void highlight(int16_t padding, uint16_t color);
 

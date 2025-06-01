@@ -12,7 +12,7 @@ void TftRectButton::init(Adafruit_ST7789 &newTft, int16_t xLocation, int16_t yLo
   tft->fillRect(x, y, w, h, color);
 }
 
-void TftRectButton::addLabel(String text, int16_t textSize, int16_t topPadding, uint16_t textColor) {
+void TftRectButton::addLabel(String text, int16_t textSize, uint16_t textColor) {
   tft->setTextSize(textSize);
   tft->setTextColor(textColor);
 
@@ -21,7 +21,7 @@ void TftRectButton::addLabel(String text, int16_t textSize, int16_t topPadding, 
   tft->getTextBounds(text, 0, 0, &textX, &textY, &textW, &textH);
 
   int16_t cursorX = x + (w - textW) / 2;
-  int16_t cursorY = y + topPadding;
+  int16_t cursorY = y + (h - textH) / 2;
   tft->setCursor(cursorX, cursorY);
   tft->print(text);
 }
