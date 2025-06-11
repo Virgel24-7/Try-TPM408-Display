@@ -3,8 +3,10 @@
 
 #include <stdint.h>
 
-// Array of RGB565 values
+// Array of RGB565 values -- 60 colors max
 const uint16_t colors[] = {
+  0x0000, // Black - Let first be always black
+  0xFFFF, // White
   0xF800, // Red
   0xFC00, // Orange
   0xFFE0, // Yellow
@@ -12,8 +14,6 @@ const uint16_t colors[] = {
   0x001F, // Blue
   0x8010, // Purple
   0xA145, // Brown
-  0x0000, // Black
-  0xFFFF, // White
   0xFDF9, // Pink
   0x8410, // Gray
   0x07FF, // Cyan
